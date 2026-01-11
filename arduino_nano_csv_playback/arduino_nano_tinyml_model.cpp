@@ -103,6 +103,18 @@ float ArduinoTinyMLModel::predict_ppg_sample(float ecg_sample) {
     // Preprocess input
     int32_t processed_input = preprocess_ecg_sample(ecg_sample);
     
+    // Debug preprocessed input
+    static uint32_t debug_count = 0;
+    debug_count++;
+    if (debug_count % 720 == 0) {  // Every 2 seconds
+        #if ENABLE_SERIAL_DEBUG
+        Serial.print("LSTM Debug - ECG: ");
+        Serial.print(ecg_sample, 1);
+        Serial.print(", Processed: ");
+        Serial.println(processed_input);
+        #endif
+    }
+    
     // Add to sequence buffer
     model.sequence_buffer[model.buffer_index] = processed_input;
     model.buffer_index = (model.buffer_index + 1) % SEQUENCE_LENGTH;
@@ -111,13 +123,32 @@ float ArduinoTinyMLModel::predict_ppg_sample(float ecg_sample) {
     int32_t layer_input[INPUT_SIZE] = {processed_input};
     int32_t layer_output[HIDDEN_SIZE];
     
+    // Initialize layer output to prevent garbage values
+    for (int i = 0; i < HIDDEN_SIZE; i++) {
+        layer_output[i] = 0;
+    }
+    
     for (int layer = 0; layer < NUM_LAYERS; layer++) {
         lstm_forward(&model.lstm_layers[layer], layer_input, layer_output);
         
-        // Copy output to input for next layer
-        for (int i = 0; i < HIDDEN_SIZE && i < INPUT_SIZE; i++) {
-            layer_input[i] = layer_output[i];
+        // Copy output to input for next layer (only copy what we need)
+        if (layer < NUM_LAYERS - 1) {
+            for (int i = 0; i < HIDDEN_SIZE && i < INPUT_SIZE; i++) {
+                layer_input[i] = layer_output[i];
+            }
         }
+    }
+    
+    // Debug LSTM output
+    if (debug_count % 720 == 1) {
+        #if ENABLE_SERIAL_DEBUG
+        Serial.print("LSTM Output[0-3]: ");
+        for (int i = 0; i < 4 && i < HIDDEN_SIZE; i++) {
+            Serial.print(layer_output[i]);
+            Serial.print(" ");
+        }
+        Serial.println();
+        #endif
     }
     
     // Output layer (linear transformation)
@@ -126,6 +157,16 @@ float ArduinoTinyMLModel::predict_ppg_sample(float ecg_sample) {
         output_sum += ((int64_t)layer_output[i] * model.output_weights[i]) / FIXED_POINT_SCALE;
     }
     output_sum += model.output_bias;
+    
+    // Debug final sum
+    if (debug_count % 720 == 2) {
+        #if ENABLE_SERIAL_DEBUG
+        Serial.print("Output sum: ");
+        Serial.print((long)output_sum);
+        Serial.print(", Bias: ");
+        Serial.println(model.output_bias);
+        #endif
+    }
     
     // Convert to int32_t with saturation
     int32_t raw_ppg = constrain_int32((int32_t)output_sum, MIN_INT32, MAX_INT32);
@@ -199,7 +240,7 @@ void ArduinoTinyMLModel::compute_gate(const int32_t* input, const Matrix* weight
     }
 }
 
-// Activation functions
+// Activation functions (static for function pointers)
 int32_t ArduinoTinyMLModel::tanh_fixed(int32_t x) {
     // Fast tanh approximation: tanh(x) ≈ x / (1 + |x|) for |x| < 2
     if (x > 2 * FIXED_POINT_SCALE) {
@@ -308,21 +349,56 @@ float ArduinoTinyMLModel::estimate_heart_rate() {
 
 // Preprocessing and postprocessing
 int32_t ArduinoTinyMLModel::preprocess_ecg_sample(float raw_ecg) {
+    // ECG input is in range 240-500, need to scale to ~0-1 range for model
+    // First, normalize to 0-1 range from typical ECG data range
+    float normalized_ecg = (raw_ecg - 240.0) / 260.0;  // Map [240,500] to [0,1]
+    
+    // Clamp to reasonable bounds
+    normalized_ecg = constrain(normalized_ecg, 0.0, 1.0);
+    
     // Convert to fixed point
-    int32_t ecg_fixed = (int32_t)(raw_ecg * FIXED_POINT_SCALE);
+    int32_t ecg_fixed = (int32_t)(normalized_ecg * FIXED_POINT_SCALE);
     
-    // Normalize: (x - mean) / std
-    int64_t normalized = ((int64_t)(ecg_fixed - model.input_mean) * FIXED_POINT_SCALE) / model.input_std;
-    
-    return constrain_int32((int32_t)normalized, MIN_INT32, MAX_INT32);
+    // Apply normalization if calibration is done
+    if (model.input_std > FIXED_POINT_SCALE/10) {  // Check if calibration was done
+        int64_t calibrated = ((int64_t)(ecg_fixed - model.input_mean) * FIXED_POINT_SCALE) / model.input_std;
+        return constrain_int32((int32_t)calibrated, MIN_INT32, MAX_INT32);
+    } else {
+        // Default normalization - center around 0 and scale
+        int32_t centered = ecg_fixed - (FIXED_POINT_SCALE / 2);  // Center around 0
+        return constrain_int32(centered, MIN_INT32, MAX_INT32);
+    }
 }
 
 float ArduinoTinyMLModel::postprocess_ppg_sample(int32_t raw_ppg) {
+    // Debug: print raw PPG value occasionally
+    static uint32_t debug_counter = 0;
+    if (debug_counter % 360 == 0) {  // Print once per second at 360 Hz
+        #if ENABLE_SERIAL_DEBUG
+        Serial.print("Debug - raw_ppg: ");
+        Serial.print(raw_ppg);
+        #endif
+    }
+    debug_counter++;
+    
     // Apply tanh activation to bound output
     int32_t bounded_ppg = tanh_fixed(raw_ppg);
     
-    // Convert back to float
-    return (float)bounded_ppg / FIXED_POINT_SCALE;
+    // Debug: print bounded value
+    if (debug_counter % 360 == 1) {
+        #if ENABLE_SERIAL_DEBUG
+        Serial.print(", bounded: ");
+        Serial.println(bounded_ppg);
+        #endif
+    }
+    
+    // Convert back to float and scale to reasonable PPG range
+    float ppg_output = (float)bounded_ppg / FIXED_POINT_SCALE;
+    
+    // Scale and shift to typical PPG signal range (0.1 to 1.5)
+    ppg_output = (ppg_output + 1.0) * 0.7 + 0.1;  // Map [-1,1] to [0.1, 1.5]
+    
+    return ppg_output;
 }
 
 // Hardware interface functions
@@ -363,30 +439,45 @@ void ArduinoTinyMLModel::set_sampling_rate(float rate) {
 void ArduinoTinyMLModel::calibrate_input(const float* calibration_data, uint16_t num_samples) {
     if (num_samples == 0) return;
     
-    // Calculate mean
+    // First normalize the calibration data to the same range as preprocessing
+    float normalized_data[num_samples];
+    for (uint16_t i = 0; i < num_samples; i++) {
+        // Apply same normalization as preprocessing
+        float normalized = (calibration_data[i] - 240.0) / 260.0;
+        normalized_data[i] = constrain(normalized, 0.0, 1.0);
+    }
+    
+    // Calculate mean of normalized data
     float sum = 0;
     for (uint16_t i = 0; i < num_samples; i++) {
-        sum += calibration_data[i];
+        sum += normalized_data[i];
     }
     float mean = sum / num_samples;
     
-    // Calculate standard deviation
+    // Calculate standard deviation of normalized data
     float variance_sum = 0;
     for (uint16_t i = 0; i < num_samples; i++) {
-        float diff = calibration_data[i] - mean;
+        float diff = normalized_data[i] - mean;
         variance_sum += diff * diff;
     }
     float std = sqrt(variance_sum / num_samples);
+    
+    // Ensure std is not too small to avoid division issues
+    if (std < 0.01) std = 0.1;
     
     // Update preprocessing parameters
     model.input_mean = (int32_t)(mean * FIXED_POINT_SCALE);
     model.input_std = (int32_t)(std * FIXED_POINT_SCALE);
     
     #if ENABLE_SERIAL_DEBUG
-    Serial.print("Calibrated - Mean: ");
-    Serial.print(mean);
+    Serial.print("Calibrated (normalized) - Mean: ");
+    Serial.print(mean, 4);
     Serial.print(", Std: ");
-    Serial.println(std);
+    Serial.println(std, 4);
+    Serial.print("Raw ECG range: ");
+    Serial.print(calibration_data[0]);
+    Serial.print(" - ");
+    Serial.println(calibration_data[num_samples-1]);
     #endif
 }
 
@@ -544,6 +635,7 @@ int32_t constrain_int32(int32_t value, int32_t min_val, int32_t max_val) {
     if (value > max_val) return max_val;
     return value;
 }
+
 
 uint32_t get_free_memory() {
     // ARM Cortex-M4 memory estimation

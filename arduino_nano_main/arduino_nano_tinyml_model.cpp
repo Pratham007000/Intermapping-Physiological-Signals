@@ -199,7 +199,7 @@ void ArduinoTinyMLModel::compute_gate(const int32_t* input, const Matrix* weight
     }
 }
 
-// Activation functions
+// Activation functions (static for function pointers)
 int32_t ArduinoTinyMLModel::tanh_fixed(int32_t x) {
     // Fast tanh approximation: tanh(x) ≈ x / (1 + |x|) for |x| < 2
     if (x > 2 * FIXED_POINT_SCALE) {

@@ -103,7 +103,7 @@ const int32_t model_bias_g[HIDDEN_SIZE] = {
 };
 
 const int32_t output_layer_weights[HIDDEN_SIZE] = {
-    62, 62, 62, 62, 62, 62, 62, 62, 62, 62, 62, 62, 62, 62, 62, 62
+    156, -89, 234, 78, -167, 203, -45, 134, -298, 89, 176, -123, 67, -234, 145, -78
 };
 
-const int32_t output_layer_bias = 0;
+const int32_t output_layer_bias = 50;

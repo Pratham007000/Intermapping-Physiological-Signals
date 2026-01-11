@@ -126,10 +126,10 @@ private:
     void matrix_add(const Matrix* a, const Matrix* b, Matrix* result);
     void matrix_init(Matrix* matrix, uint8_t rows, uint8_t cols);
     
-    // Activation functions
-    int32_t tanh_fixed(int32_t x);
-    int32_t sigmoid_fixed(int32_t x);
-    int32_t relu_fixed(int32_t x);
+    // Activation functions (made static for function pointers)
+    static int32_t tanh_fixed(int32_t x);
+    static int32_t sigmoid_fixed(int32_t x);
+    static int32_t relu_fixed(int32_t x);
     
     // LSTM operations
     void compute_gate(const int32_t* input, const Matrix* weights, 
