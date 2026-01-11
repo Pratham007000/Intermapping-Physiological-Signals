@@ -1,0 +1,11 @@
+Test MSE: 0.187094
+Test RMSE: 0.432543
+Test MAE: 0.289475
+Test R² Score: 0.807567
+Test Pearson Correlation: 0.899446
+
+Model parameters:
+Hidden size: 128
+Num layers: 2
+Bidirectional: True
+Dropout rate: 0.3
