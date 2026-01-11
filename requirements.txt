@@ -1,0 +1,44 @@
+# Core scientific computing
+numpy>=1.24.0
+scipy>=1.10.0
+pandas>=2.0.0
+
+# Machine learning
+scikit-learn>=1.3.0
+tensorflow>=2.13.0
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Signal processing
+neurokit2>=0.2.0
+heartpy>=1.2.7
+biosppy>=2.0.0
+
+# Data visualization
+matplotlib>=3.7.0
+seaborn>=0.12.0
+plotly>=5.15.0
+
+# Image processing (for camera-based PPG)
+opencv-python>=4.8.0
+Pillow>=10.0.0
+
+# Data handling
+h5py>=3.9.0
+wfdb>=4.1.0
+
+# Jupyter notebook support
+jupyter>=1.0.0
+ipykernel>=6.25.0
+
+# Utilities
+tqdm>=4.65.0
+requests>=2.31.0
+
+# Optional: Deep learning frameworks
+# keras>=2.13.0
+# pytorch-lightning>=2.0.0
+
+# Optional: Advanced signal processing
+# pywavelets>=1.4.0
+# spectrum>=0.8.0
