@@ -1,4 +1,4 @@
-# Intermapping of Physiological Signals 🫀⚡
+# Intermapping of Physiological Signals 
 
 **Research Internship Project | IIIT Bangalore** *May 2025 - Aug 2025*
 
@@ -8,7 +8,7 @@
 ![License](https://img.shields.io/badge/License-MIT-green)
 
 ## 📖 Overview
-This project explores the **interrelationships between physiological signals**, leveraging Deep Learning to map and synthesize signals across different modalities. The core innovation is the ability to estimate complex hemodynamic parameters (like PPG, SCG, and Blood Pressure) using only a standard ECG input.
+This project explores the **interrelationships between physiological signals**, leveraging Deep Learning to map and synthesize signals across different modalities. The core innovation is the ability to estimate complex hemodynamic parameters (like ECG, SCG, and Blood Pressure) using only a standard PPG input.
 
 The system features a complete **Edge AI pipeline**, allowing optimized models to run on resource-constrained microcontrollers (Arduino Nano 33 BLE Sense and Raspberry Pi Pico) for real-time, wearable monitoring.
 
@@ -16,7 +16,7 @@ The system features a complete **Edge AI pipeline**, allowing optimized models t
 
 ### 1. Cross-Modal Signal Synthesis (Intermapping)
 Using advanced architectures (Hybrid Transformer-CNNs, Bi-LSTMs), we map:
-* **ECG ➡️ PPG:** Synthesizing optical blood flow waveforms from electrical heart activity.
+* **PPG ➡️ ECG:** Synthesizing optical blood flow waveforms from electrical heart activity.
 * **ECG ➡️ SCG:** Predicting mechanical heart vibrations (Seismocardiogram).
 * **ECG ➡️ GSR/EMG:** Estimating Electrodermal and Electromyographic activity.
 
